@@ -231,7 +231,8 @@ spec:
   # - metadata:
   #     name: data
   #   spec:
+  #     storageClassName: "nfs-storage" # 必填 
   #     accessModes: [ "ReadWriteOnce" ]
   #     resources:
   #       requests:
-  #         storage: 10Gi
+  #         storage: 1Gi
