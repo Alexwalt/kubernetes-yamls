@@ -1,0 +1,140 @@
+# mongo.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mongo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mongo
+  namespace: mongo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mongo
+subjects:
+  - kind: ServiceAccount
+    name: mongo
+    namespace: mongo
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: mongo
+ namespace: mongo
+ labels:
+   name: mongo
+spec:
+ ports:
+ - port: 27017
+   targetPort: 27017
+ clusterIP: None
+ selector:
+   role: mongo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: mongo
+spec:
+  serviceName: mongo
+  replicas: 3
+  selector:
+    matchLabels:
+      role: mongo
+      environment: staging
+  template:
+    metadata:
+      labels:
+        role: mongo
+        environment: staging
+        replicaset: MainRepSet
+    spec:
+      # affinity:
+      #   podAntiAffinity:  # 添加 Pod 反亲和性，将副本打散在不同的节点
+      #     preferredDuringSchedulingIgnoredDuringExecution:  # 软策略
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: replicaset
+      #             operator: In
+      #             values:
+      #             - MainRepSet
+      #         topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: mongo
+      containers:
+        - name: mongo
+          image: mongo:4.0
+          command:
+            - mongod
+            - "--wiredTigerCacheSizeGB"
+            - "0.25"
+            - "--bind_ip"
+            - "0.0.0.0"
+            - "--replSet"
+            - MainRepSet
+            - "--smallfiles"
+            - "--noprealloc"
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          # livenessProbe:
+          #   exec:
+          #     command:
+          #       - mongo
+          #       - --disableImplicitSessions
+          #       - --eval
+          #       - "db.adminCommand('ping')"
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   successThreshold: 1
+          #   failureThreshold: 6
+          # readinessProbe:
+          #   exec:
+          #     command:
+          #       - mongo
+          #       - --disableImplicitSessions
+          #       - --eval
+          #       - "db.adminCommand('ping')"
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   successThreshold: 1
+          #   failureThreshold: 6  
+        - name: mongo-sidecar
+          image: cvallance/mongo-k8s-sidecar
+          env:
+            - name: MONGO_SIDECAR_POD_LABELS
+              value: "role=mongo,environment=staging"
+            - name: KUBE_NAMESPACE
+              value: "mongo"
+            - name: KUBERNETES_MONGO_SERVICE_NAME
+              value: "mongo"
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: nfs-storage  # 提供一个可用的 Storageclass
+      resources:
+        requests:
+          storage: 2Gi
