@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foo
+spec:
+  imagePullSecrets:
+    - name: aliyun 
+  containers: 
+    - name: java-devops
+      image: registry.cn-hangzhou.aliyuncs.com/lfy/java-devops-demo:v1.0

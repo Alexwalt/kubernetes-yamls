@@ -1,0 +1,48 @@
+# PV Define
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 10.244.1.4
+    path: "/"
+---
+# PVC Define
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Pod Define
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    role: web-frontend
+spec:
+  containers:
+  - name: web
+    image: nginx
+    ports:
+    - name: web
+      containerPort: 80
+    volumeMounts:
+      - name: nfs
+        mountPath: "/usr/share/nginx/html"
+  volumes:
+  - name: nfs
+    peersistentVolumeClaim:
+      claimName: nfs

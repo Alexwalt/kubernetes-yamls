@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datamap-mpi
+  namespace: inspection-mutual-recognition
+  labels:
+    app: datamap-mpi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datamap-mpi
+  template:
+    metadata:
+      labels:
+        app: datamap-mpi
+    spec:
+      containers:
+        - name: datamap-mpi
+          env:
+            - name: aliyun_logs_ns-inspection-mutual-recognition
+              value: stdout
+          image: ${image}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datamap-mpi
+  namespace: inspection-mutual-recognition
+spec:
+  selector:
+    app: datamap-mpi
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: datamap-mpi
+  namespace: inspection-mutual-recognition
+#  annotations:
+#    nginx.ingress.kubernetes.io/whitelist-source-range: "39.170.10.78"
+spec:
+  rules:
+    - host: datamap-mpi.test.group-ds.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: datamap-mpi
+              servicePort: 80
